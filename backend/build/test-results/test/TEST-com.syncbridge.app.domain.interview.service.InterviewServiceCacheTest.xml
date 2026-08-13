@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.syncbridge.app.domain.interview.service.InterviewServiceCacheTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-08-12T14:38:23" hostname="gimseung-yun-ui-MacBookAir.local" time="1.273">
+  <properties/>
+  <testcase name="답변이 제출되면 그보다 뒤 번호의 질문 캐시를 무효화한다" classname="com.syncbridge.app.domain.interview.service.InterviewServiceCacheTest" time="0.913"/>
+  <testcase name="캐시된 질문이 있으면 AI 서비스를 호출하지 않고 그대로 재생한다" classname="com.syncbridge.app.domain.interview.service.InterviewServiceCacheTest" time="0.353"/>
+  <testcase name="질문 번호가 1~6 범위를 벗어나면 캐시 조회 전에 거절한다" classname="com.syncbridge.app.domain.interview.service.InterviewServiceCacheTest" time="0.003"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

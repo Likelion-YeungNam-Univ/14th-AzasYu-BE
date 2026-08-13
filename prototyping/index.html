@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>SyncBridge Prototyping Tester</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; color: #222; }
+    h2 { margin-top: 32px; border-bottom: 2px solid #eee; padding-bottom: 6px; }
+    section { margin-bottom: 24px; }
+    #chat-box { border: 1px solid #ccc; height: 300px; overflow-y: scroll; padding: 10px; margin-bottom: 10px; background: #fafafa; }
+    .ai-msg { color: #0066cc; margin: 5px 0; white-space: pre-wrap; }
+    .user-msg { color: #222; font-weight: bold; margin: 5px 0; text-align: right; }
+    .sys-msg { color: #888; font-size: 13px; margin: 5px 0; }
+    .err-msg { color: #cc0033; margin: 5px 0; }
+    button { padding: 8px 14px; margin: 4px 4px 4px 0; cursor: pointer; border: 1px solid #bbb; background: #fff; border-radius: 4px; }
+    button:hover { background: #f0f6ff; border-color: #4A90E2; }
+    input[type=text], input[type=password], input[type=number], textarea {
+      padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; font-size: 14px;
+    }
+    input[type=text], input[type=password] { width: 220px; }
+    textarea { width: 100%; box-sizing: border-box; }
+    label { display: inline-block; min-width: 90px; font-size: 14px; }
+    pre { background: #f5f5f5; padding: 12px; border-radius: 4px; overflow-x: auto; font-size: 13px; max-height: 320px; }
+    .row { margin: 6px 0; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; background: #eee; }
+    .badge.on { background: #d6f5dd; color: #0a7d2c; }
+    .badge.off { background: #ffe0e0; color: #b00020; }
+    .idea-card { border: 1px solid #ddd; border-left: 4px solid #4A90E2; padding: 8px 12px; margin: 6px 0; border-radius: 4px; }
+    .idea-card.ai { border-left-color: #cc6600; background: #fff9f0; }
+    .idea-meta { font-size: 12px; color: #888; }
+  </style>
+</head>
+<body>
+  <h1>SyncBridge Prototyping Tester</h1>
+  <p class="sys-msg">
+    Spring Boot 에서 <code>http://localhost:8080/prototyping/index.html</code> 로 열면 동일 오리진이라 그대로 동작합니다.<br>
+    (파일을 직접 열었다면 아래 API Base URL 을 <code>http://localhost:8080</code> 으로 지정하세요.)
+  </p>
+
+  <h2>0. 인증 / 공통 설정</h2>
+  <section>
+    <div class="row">
+      <label>API Base</label>
+      <input type="text" id="apiBase" placeholder="(비우면 동일 오리진)">
+      <span class="badge" id="authBadge">토큰 없음</span>
+    </div>
+    <div class="row">
+      <label>이메일</label><input type="text" id="email" value="haeeon03@naver.com">
+      <label>비밀번호</label><input type="password" id="password" value="password123!">
+      <input type="text" id="name" value="이지혜" placeholder="이름(가입 시)">
+    </div>
+    <div class="row">
+      <button onclick="signup()">회원가입</button>
+      <button onclick="login()">로그인 (토큰 발급)</button>
+      <button onclick="logout()">로그아웃</button>
+    </div>
+    <div class="row">
+      <label>회의 ID</label><input type="number" id="meetingId" value="100" style="width:80px">
+      <span class="sys-msg">아래 모든 테스트에 사용됩니다.</span>
+    </div>
+    <pre id="authOutput">아직 요청 없음</pre>
+  </section>
+
+  <h2>1. AI 사전 인터뷰 SSE 스트리밍 테스트</h2>
+  <section>
+    <div id="chat-box"></div>
+    <div class="row">
+      <label>질문 번호</label><input type="number" id="questionNum" value="2" min="1" max="6" style="width:60px">
+      <button onclick="startInterviewStream()">AI 질문 받기 (SSE Stream)</button>
+      <button onclick="stopInterviewStream()">스트림 중단</button>
+    </div>
+    <div class="row">
+      <textarea id="answerText" rows="2" placeholder="AI 질문에 대한 답변을 입력하고 제출하세요."></textarea>
+    </div>
+    <div class="row">
+      <button onclick="submitAnswer()">답변 제출 (POST /interview/answer)</button>
+    </div>
+  </section>
+
+  <h2>2. 회의록 파일 업로드 및 AI 분석 테스트</h2>
+  <section>
+    <div class="row">
+      <input type="file" id="fileInput" accept=".txt,.pdf,.docx">
+      <button onclick="uploadMeetingFile()">파일 업로드 및 분석 요청</button>
+    </div>
+    <div class="row">
+      <textarea id="rawText" rows="4" placeholder="파일 대신(또는 함께) 회의록 원문 텍스트를 붙여넣어 테스트할 수 있습니다."></textarea>
+    </div>
+    <div class="row">
+      <button onclick="uploadRawText()">텍스트로 분석 요청</button>
+      <button onclick="fetchResult()">분석 결과 조회 (GET /result)</button>
+    </div>
+    <pre id="analysisOutput">아직 요청 없음</pre>
+  </section>
+
+  <h2>3. 소프트 익명 아이디어 보드 테스트</h2>
+  <section>
+    <div class="row">
+      <textarea id="ideaContent" rows="2" placeholder="아이디어를 입력하세요. 작성자는 '익명'으로만 노출됩니다."></textarea>
+    </div>
+    <div class="row">
+      <button onclick="createIdea()">아이디어 작성</button>
+      <button onclick="loadIdeas()">보드 새로고침</button>
+    </div>
+    <div id="ideaBoard"></div>
+  </section>
+
+  <script>
+    const TOKEN_KEY = 'syncbridge.accessToken';
+
+    // ---------- 공통 유틸 ----------
+    function apiBase() {
+      return document.getElementById('apiBase').value.replace(/\/$/, '');
+    }
+    function token() {
+      return localStorage.getItem(TOKEN_KEY) || '';
+    }
+    function meetingId() {
+      return document.getElementById('meetingId').value || '100';
+    }
+    function authHeaders(extra = {}) {
+      return token() ? { ...extra, 'Authorization': 'Bearer ' + token() } : extra;
+    }
+    function renderToken() {
+      const badge = document.getElementById('authBadge');
+      if (token()) {
+        badge.textContent = '토큰 보유';
+        badge.className = 'badge on';
+      } else {
+        badge.textContent = '토큰 없음';
+        badge.className = 'badge off';
+      }
+    }
+    function print(elementId, value) {
+      document.getElementById(elementId).textContent =
+        typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+    }
+    function appendChat(text, className) {
+      const chatBox = document.getElementById('chat-box');
+      const div = document.createElement('div');
+      div.className = className;
+      div.innerText = text;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+      return div;
+    }
+    async function callApi(path, options = {}) {
+      const res = await fetch(apiBase() + path, options);
+      const text = await res.text();
+      let body;
+      try { body = text ? JSON.parse(text) : null; } catch (e) { body = text; }
+      return { ok: res.ok, status: res.status, body };
+    }
+
+    // ---------- 0. 인증 ----------
+    async function signup() {
+      const result = await callApi('/api/v1/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: document.getElementById('email').value,
+          password: document.getElementById('password').value,
+          passwordConfirm: document.getElementById('password').value,
+          name: document.getElementById('name').value
+        })
+      });
+      print('authOutput', result);
+    }
+
+    async function login() {
+      const result = await callApi('/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: document.getElementById('email').value,
+          password: document.getElementById('password').value
+        })
+      });
+      if (result.ok && result.body.accessToken) {
+        localStorage.setItem(TOKEN_KEY, result.body.accessToken);
+      }
+      renderToken();
+      print('authOutput', result);
+    }
+
+    async function logout() {
+      const result = await callApi('/api/v1/auth/logout', {
+        method: 'POST',
+        headers: authHeaders()
+      });
+      localStorage.removeItem(TOKEN_KEY);
+      renderToken();
+      print('authOutput', result);
+    }
+
+    // ---------- 1. SSE 스트리밍 ----------
+    let eventSource = null;
+
+    function startInterviewStream() {
+      stopInterviewStream();
+
+      const questionNum = document.getElementById('questionNum').value || 1;
+      const aiDiv = appendChat('AI: ', 'ai-msg');
+
+      // EventSource 는 커스텀 헤더를 보낼 수 없으므로 토큰을 쿼리 파라미터로 전달한다.
+      const url = apiBase()
+        + `/api/v1/meetings/${meetingId()}/interview/stream?questionNum=${questionNum}`
+        + (token() ? `&token=${encodeURIComponent(token())}` : '');
+
+      eventSource = new EventSource(url);
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.chunk) {
+          aiDiv.innerText += data.chunk;
+          document.getElementById('chat-box').scrollTop = document.getElementById('chat-box').scrollHeight;
+        }
+        if (data.status === 'ERROR') {
+          appendChat(`[에러] ${data.errorCode || ''} ${data.message || ''}`, 'err-msg');
+        }
+        if (data.status === 'DONE') {
+          appendChat(`— 스트림 종료 (questionNum: ${data.questionNum}) —`, 'sys-msg');
+          eventSource.close();
+          eventSource = null;
+        }
+      };
+      eventSource.onerror = () => {
+        appendChat('[에러] SSE 연결 실패 — 로그인 토큰/회의 ID/서버 상태를 확인하세요.', 'err-msg');
+        if (eventSource) { eventSource.close(); eventSource = null; }
+      };
+    }
+
+    function stopInterviewStream() {
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+        appendChat('— 스트림 중단 —', 'sys-msg');
+      }
+    }
+
+    async function submitAnswer() {
+      const answerText = document.getElementById('answerText').value.trim();
+      if (!answerText) { alert('답변을 입력하세요.'); return; }
+
+      // 마지막 AI 메시지를 질문 원문으로 사용한다.
+      const aiMessages = document.querySelectorAll('#chat-box .ai-msg');
+      const questionText = aiMessages.length
+        ? aiMessages[aiMessages.length - 1].innerText.replace(/^AI:\s*/, '')
+        : '(질문 원문 없음)';
+
+      appendChat(answerText, 'user-msg');
+
+      const result = await callApi(`/api/v1/meetings/${meetingId()}/interview/answer`, {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          questionNum: Number(document.getElementById('questionNum').value),
+          questionText: questionText,
+          answerText: answerText
+        })
+      });
+
+      if (result.ok) {
+        document.getElementById('answerText').value = '';
+        appendChat(
+          result.body.isCompleted
+            ? '— 사전 인터뷰 완료 —'
+            : `— 저장 완료. 다음 질문: ${result.body.nextQuestionNum} —`,
+          'sys-msg');
+        if (result.body.nextQuestionNum) {
+          document.getElementById('questionNum').value = result.body.nextQuestionNum;
+        }
+      } else {
+        appendChat(`[에러] ${JSON.stringify(result.body)}`, 'err-msg');
+      }
+    }
+
+    // ---------- 2. 업로드 & 분석 ----------
+    async function uploadMeetingFile() {
+      const fileInput = document.getElementById('fileInput');
+      if (!fileInput.files[0]) { alert('파일을 선택하세요.'); return; }
+
+      const formData = new FormData();
+      formData.append('file', fileInput.files[0]);
+
+      const result = await callApi(`/api/v1/meetings/${meetingId()}/upload`, {
+        method: 'POST',
+        headers: authHeaders(),   // Content-Type 은 브라우저가 boundary 와 함께 설정한다.
+        body: formData
+      });
+      print('analysisOutput', result);
+    }
+
+    async function uploadRawText() {
+      const rawText = document.getElementById('rawText').value.trim();
+      if (!rawText) { alert('회의록 텍스트를 입력하세요.'); return; }
+
+      const formData = new FormData();
+      formData.append('rawText', rawText);
+
+      const result = await callApi(`/api/v1/meetings/${meetingId()}/upload`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: formData
+      });
+      print('analysisOutput', result);
+    }
+
+    async function fetchResult() {
+      const result = await callApi(`/api/v1/meetings/${meetingId()}/result`, {
+        headers: authHeaders()
+      });
+      print('analysisOutput', result);
+    }
+
+    // ---------- 3. 아이디어 보드 ----------
+    async function createIdea() {
+      const content = document.getElementById('ideaContent').value.trim();
+      if (!content) { alert('아이디어를 입력하세요.'); return; }
+
+      const result = await callApi(`/api/v1/meetings/${meetingId()}/ideas`, {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ content })
+      });
+      if (result.ok) {
+        document.getElementById('ideaContent').value = '';
+        loadIdeas();
+      } else {
+        alert('작성 실패: ' + JSON.stringify(result.body));
+      }
+    }
+
+    async function loadIdeas() {
+      const result = await callApi(`/api/v1/meetings/${meetingId()}/ideas`, {
+        headers: authHeaders()
+      });
+      const board = document.getElementById('ideaBoard');
+      board.innerHTML = '';
+
+      if (!result.ok) {
+        board.innerHTML = `<div class="err-msg">조회 실패: ${JSON.stringify(result.body)}</div>`;
+        return;
+      }
+      if (!result.body.length) {
+        board.innerHTML = '<div class="sys-msg">등록된 아이디어가 없습니다.</div>';
+        return;
+      }
+      result.body.forEach(idea => {
+        const card = document.createElement('div');
+        card.className = 'idea-card' + (idea.isAiGenerated ? ' ai' : '');
+        card.innerHTML =
+          `<div>${idea.content}</div>` +
+          `<div class="idea-meta">${idea.authorName} · ${idea.createdAt}</div>`;
+        board.appendChild(card);
+      });
+    }
+
+    renderToken();
+  </script>
+</body>
+</html>

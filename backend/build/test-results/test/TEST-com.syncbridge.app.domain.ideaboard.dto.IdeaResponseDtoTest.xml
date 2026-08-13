@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.syncbridge.app.domain.ideaboard.dto.IdeaResponseDtoTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-08-12T14:38:23" hostname="gimseung-yun-ui-MacBookAir.local" time="0.002">
+  <properties/>
+  <testcase name="팀원이 작성한 카드는 작성자가 '익명'으로 마스킹된다" classname="com.syncbridge.app.domain.ideaboard.dto.IdeaResponseDtoTest" time="0.0"/>
+  <testcase name="AI 가 생성한 카드는 작성자가 'AI 챗봇'으로 표시된다" classname="com.syncbridge.app.domain.ideaboard.dto.IdeaResponseDtoTest" time="0.0"/>
+  <testcase name="공개 전환된 카드만 실명을 노출한다" classname="com.syncbridge.app.domain.ideaboard.dto.IdeaResponseDtoTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

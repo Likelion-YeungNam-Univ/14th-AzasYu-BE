@@ -1,0 +1,50 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: syncbridge-backend
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/syncbridge}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:secretpassword}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: false
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
+  mvc:
+    async:
+      request-timeout: 300000   # SSE 프록시 스트림 타임아웃 (5분)
+
+jwt:
+  secret: ${JWT_SECRET:c3luY2JyaWRnZS1zZWNyZXQta2V5LWZvci1qd3QtdG9rZW4tZ2VuZXJhdGlvbg==}
+  expiration-seconds: 86400
+
+ai-service:
+  url: ${AI_SERVICE_URL:http://localhost:8000}
+  timeout-seconds: 180
+
+file:
+  upload-dir: ${FILE_UPLOAD_DIR:./uploads}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: alpha
+    tags-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+  default-produces-media-type: application/json
+
+logging:
+  level:
+    com.syncbridge.app: DEBUG
